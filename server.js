@@ -5,24 +5,23 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const app = express();
+
 const PORT = process.env.PORT || 3000;
 
-// ==========================
-// INSTALL URL
-// ==========================
-app.get("/oauth/install", (req, res) => {
-  const installUrl =
-    "https://app.hubspot.com/oauth/authorize" +
-    `?client_id=${process.env.CLIENT_ID}` +
-    `&scope=crm.objects.contacts.read%20crm.objects.contacts.write` +
-    `&redirect_uri=${encodeURIComponent(process.env.REDIRECT_URI)}`;
-
-  res.redirect(installUrl);
+app.get("/", (req, res) => {
+  res.send("Server running");
 });
 
-// ==========================
-// CALLBACK
-// ==========================
+
+// 👉 STEP 1: INSTALL (already working)
+app.get("/oauth/install", (req, res) => {
+  const url = `https://app.hubspot.com/oauth/authorize?client_id=${process.env.CLIENT_ID}&scope=crm.objects.contacts.read&redirect_uri=${process.env.REDIRECT_URI}`;
+
+  res.redirect(url);
+});
+
+
+// 👉 STEP 2: CALLBACK (THIS WAS MISSING ❗)
 app.get("/oauth/callback", async (req, res) => {
   const code = req.query.code;
 
@@ -31,6 +30,7 @@ app.get("/oauth/callback", async (req, res) => {
   }
 
   try {
+    // Exchange code for access token
     const response = await axios.post(
       "https://api.hubapi.com/oauth/v1/token",
       new URLSearchParams({
@@ -47,14 +47,10 @@ app.get("/oauth/callback", async (req, res) => {
       }
     );
 
-    const portalId = response.data.hub_id;
+    console.log("Access Token:", response.data);
 
-    console.log("CONNECTED PORTAL:", portalId);
-
-    // ✅ FINAL REDIRECT
-    res.redirect(
-      `https://app.snapvalid.com/user/dashboard?portal_id=${portalId}`
-    );
+    // 👉 FINAL REDIRECT (YOUR GOAL)
+    return res.redirect("https://app.snapvalid.com/user/dashboard");
 
   } catch (error) {
     console.error(error.response?.data || error.message);
@@ -62,7 +58,7 @@ app.get("/oauth/callback", async (req, res) => {
   }
 });
 
-// ==========================
+
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
