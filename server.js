@@ -6,18 +6,20 @@ dotenv.config();
 
 const app = express();
 
-// ENV VARIABLES
+// ENV
 const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const REDIRECT_URI = process.env.REDIRECT_URI;
 
-// ✅ REQUIRED SCOPES (MATCH HUBSPOT)
+// SCOPES
 const SCOPES = [
   "crm.objects.contacts.read",
   "crm.objects.contacts.write"
 ].join(" ");
 
-// 👉 INSTALL URL
+// ==============================
+// 👉 INSTALL ROUTE
+// ==============================
 app.get("/oauth/install", (req, res) => {
   const authUrl =
     "https://app.hubspot.com/oauth/authorize" +
@@ -30,16 +32,19 @@ app.get("/oauth/install", (req, res) => {
   res.redirect(authUrl);
 });
 
-// 👉 CALLBACK
+// ==============================
+// 👉 CALLBACK ROUTE
+// ==============================
 app.get("/oauth/callback", async (req, res) => {
-  const code = req.query.code;
+  const { code } = req.query;
 
   if (!code) {
-    return res.send("No code received");
+    return res.send("❌ No authorization code received");
   }
 
   try {
-    const response = await axios.post(
+    // 🔥 EXCHANGE CODE FOR TOKEN
+    const tokenRes = await axios.post(
       "https://api.hubapi.com/oauth/v1/token",
       null,
       {
@@ -53,20 +58,35 @@ app.get("/oauth/callback", async (req, res) => {
       }
     );
 
-    console.log("TOKEN SUCCESS");
+    const data = tokenRes.data;
 
-    // ✅ REDIRECT TO YOUR REAL DASHBOARD
-    res.redirect("https://app.snapvalid.com/user/dashboard");
+    console.log("✅ TOKEN SUCCESS");
+
+    // 🔥 GET PORTAL ID (IMPORTANT)
+    const portalId = data.hub_id;
+
+    // 👉 (Optional) You can store tokens here in DB
+    // access_token = data.access_token
+    // refresh_token = data.refresh_token
+
+    // ==============================
+    // 👉 FINAL REDIRECT (IMPORTANT)
+    // ==============================
+    res.redirect(
+      `https://app.snapvalid.com/user/dashboard?portal_id=${portalId}`
+    );
 
   } catch (error) {
-    console.error("TOKEN ERROR:", error.response?.data || error.message);
+    console.error("❌ TOKEN ERROR:", error.response?.data || error.message);
     res.send("OAuth failed");
   }
 });
 
-// ✅ FIX FOR RENDER (CRITICAL)
+// ==============================
+// 👉 SERVER START
+// ==============================
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
